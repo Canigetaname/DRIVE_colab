@@ -4,7 +4,6 @@ import cv2
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
-import random
 
 
 class DADA2KS(Dataset):
@@ -23,33 +22,29 @@ class DADA2KS(Dataset):
         self.data_list, self.labels, self.clips, self.toas = self.get_data_list()
 
     def get_data_list(self):
-    list_file = os.path.join(self.root_path, self.phase, self.phase + '.txt')
-    assert os.path.exists(list_file), "File does not exist! %s"%(list_file)
-    fileIDs, labels, clips, toas = [], [], [], []
-    samples_visited, visit_rows = [], []
-    with open(list_file, 'r') as f:
-        all_lines = f.readlines()
-        # Choose a subset of the data
-        num_samples = len(all_lines)
-        subset_size = int(num_samples * 0.5)  # Example: 50% of the data
-        selected_indices = random.sample(range(num_samples), subset_size)
-        for ids, line in enumerate(all_lines):
-            if ids in selected_indices:
-                sample = line.strip().split(' ')  # e.g.: 1/002 1 0 149 136
-                fileIDs.append(sample[0])       # 1/002
-                labels.append(int(sample[1]))   # 1: positive, 0: negative
-                clips.append([int(sample[2]), int(sample[3])])  # [start frame, end frame]
-                toas.append(int(sample[4]))     # time-of-accident (toa)
-                sample_id = sample[0] + '_' + sample[1]
-                if sample_id not in samples_visited:
-                    samples_visited.append(sample_id)
-                    visit_rows.append(ids)
-    if not self.data_aug:
-        fileIDs = [fileIDs[i] for i in visit_rows]
-        labels = [labels[i] for i in visit_rows]
-        clips = [clips[i] for i in visit_rows]
-        toas = [toas[i] for i in visit_rows]
-    return fileIDs, labels, clips, toas
+        list_file = os.path.join(self.root_path, self.phase, self.phase + '.txt')
+        assert os.path.exists(list_file), "File does not exist! %s"%(list_file)
+        fileIDs, labels, clips, toas = [], [], [], []
+        samples_visited, visit_rows = [], []
+        with open(list_file, 'r') as f:
+            for ids, line in enumerate(f.readlines()):
+                #print(ids)
+                if ids%4==0:
+                    sample = line.strip().split(' ')  # e.g.: 1/002 1 0 149 136
+                    fileIDs.append(sample[0])       # 1/002
+                    labels.append(int(sample[1]))   # 1: positive, 0: negative
+                    clips.append([int(sample[2]), int(sample[3])])  # [start frame, end frame]
+                    toas.append(int(sample[4]))     # time-of-accident (toa)
+                    sample_id = sample[0] + '_' + sample[1]
+                    if sample_id not in samples_visited:
+                        samples_visited.append(sample_id)
+                        visit_rows.append(ids)
+        if not self.data_aug:
+            fileIDs = [fileIDs[i//4] for i in visit_rows]
+            labels = [labels[i//4] for i in visit_rows]
+            clips = [clips[i//4] for i in visit_rows]
+            toas = [toas[i//4] for i in visit_rows]
+        return fileIDs, labels, clips, toas
 
     def __len__(self):
         return len(self.data_list)
@@ -145,11 +140,11 @@ def setup_dataloader(cfg):
     # training dataset
     train_data = DADA2KS(cfg.data_path, 'training', interval=cfg.frame_interval, 
                             transforms=transform_dict, use_salmap=cfg.use_salmap)
-    traindata_loader = DataLoader(dataset=train_data, batch_size=cfg.batch_size, shuffle=True, num_workers=cfg.num_workers, pin_memory=True)
+    traindata_loader = DataLoader(dataset=train_data, batch_size=cfg.batch_size, shuffle=True, num_workers=4, pin_memory=True)
     # validataion dataset
     eval_data = DADA2KS(cfg.data_path, 'validation', interval=cfg.frame_interval, 
                             transforms=transform_dict, use_salmap=cfg.use_salmap)
-    evaldata_loader = DataLoader(dataset=eval_data, batch_size=cfg.batch_size, shuffle=False, num_workers=cfg.num_workers, pin_memory=True)
+    evaldata_loader = DataLoader(dataset=eval_data, batch_size=cfg.batch_size, shuffle=False, num_workers=4, pin_memory=True)
     print("# train set: %d, eval set: %d"%(len(train_data), len(eval_data)))
     return traindata_loader, evaldata_loader
 
