@@ -41,10 +41,10 @@ def parse_configs():
                         help='setup baseline results for testing comparison')
     parser.add_argument('--seed', type=int, default=123, metavar='N',
                         help='random seed (default: 123)')
-    parser.add_argument('--num_epoch', type=int, default=2, metavar='N',
-                        help='number of epoches (default: 2)')
-    parser.add_argument('--snapshot_interval', type=int, default=5, metavar='N',
-                        help='The epoch interval of model snapshot (default: 5)')
+    parser.add_argument('--num_epoch', type=int, default=10, metavar='N',
+                        help='number of epoches (default: 10)')
+    parser.add_argument('--snapshot_interval', type=int, default=10, metavar='N',
+                        help='The epoch interval of model snapshot (default: 10)')
     parser.add_argument('--test_epoch', type=int, default=-1, 
                         help='The snapshot id of trained model for testing.')
     parser.add_argument('--output', default='./output/SAC',

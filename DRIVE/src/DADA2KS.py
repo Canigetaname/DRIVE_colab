@@ -29,7 +29,7 @@ class DADA2KS(Dataset):
         with open(list_file, 'r') as f:
             for ids, line in enumerate(f.readlines()):
                 #print(ids)
-                if ids%4==0:
+                if ids%10==0:
                     sample = line.strip().split(' ')  # e.g.: 1/002 1 0 149 136
                     fileIDs.append(sample[0])       # 1/002
                     labels.append(int(sample[1]))   # 1: positive, 0: negative
@@ -40,10 +40,10 @@ class DADA2KS(Dataset):
                         samples_visited.append(sample_id)
                         visit_rows.append(ids)
         if not self.data_aug:
-            fileIDs = [fileIDs[i//4] for i in visit_rows]
-            labels = [labels[i//4] for i in visit_rows]
-            clips = [clips[i//4] for i in visit_rows]
-            toas = [toas[i//4] for i in visit_rows]
+            fileIDs = [fileIDs[i//10] for i in visit_rows]
+            labels = [labels[i//10] for i in visit_rows]
+            clips = [clips[i//10] for i in visit_rows]
+            toas = [toas[i//10] for i in visit_rows]
         return fileIDs, labels, clips, toas
 
     def __len__(self):
