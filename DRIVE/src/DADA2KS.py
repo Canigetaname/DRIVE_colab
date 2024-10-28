@@ -16,7 +16,7 @@ class DADA2KS(Dataset):
         self.use_salmap = use_salmap
         self.use_fixation = use_fixation
         self.data_aug = data_aug
-        self.fps = 60
+        self.fps = 30
         self.num_classes = 2
         # read samples list
         self.data_list, self.labels, self.clips, self.toas = self.get_data_list()
