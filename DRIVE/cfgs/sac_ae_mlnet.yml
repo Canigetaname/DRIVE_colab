@@ -10,7 +10,7 @@ ENV:
   rho: 0.97
   fusion: "static"  # static or dynamic
   fusion_margin: 0.5
-  score_thresh: 0.5
+  score_thresh: 0.7
   use_salmap: false  # set to False to speedup data loading
   state_norm: true
   saliency: 'MLNet'
@@ -18,7 +18,7 @@ ENV:
 SAC:
   gamma: 0.99
   tau: 0.005
-  lr: 0.0003
+  lr: 0.00007
   lr_alpha: 0.00005
   num_classes: 2
   hidden_size: 64
@@ -30,10 +30,10 @@ SAC:
   actor_update_interval: 2
   target_update_interval: 1
   automatic_entropy_tuning: true
-  alpha: 0.001
-  beta_accident: 1.0
-  beta_fixation: 10.0
-  replay_size: 1000000
+  alpha: 0.005
+  beta_accident: 0.9
+  beta_fixation: 7.5
+  replay_size: 100000
   batch_size: 64
   updates_per_step: 4
   logging_interval: 100
