@@ -10,7 +10,7 @@ ENV:
   rho: 0.97
   fusion: "static"  # static or dynamic
   fusion_margin: 0.5
-  score_thresh: 0.7
+  score_thresh: 0.6
   use_salmap: false  # set to False to speedup data loading
   state_norm: true
   saliency: 'MLNet'
@@ -18,7 +18,7 @@ ENV:
 SAC:
   gamma: 0.99
   tau: 0.005
-  lr: 0.00007
+  lr: 0.0005
   lr_alpha: 0.00005
   num_classes: 2
   hidden_size: 64

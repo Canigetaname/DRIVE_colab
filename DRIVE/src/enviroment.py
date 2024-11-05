@@ -175,7 +175,7 @@ class DashCamEnv(core.Env):
         return next_state.detach()
 
 
-    def get_reward(self, score_pred, fix_pred):
+        def get_reward(self, score_pred, fix_pred):
         """ score_pred: (B,): accident score
             fix_pred: (B, 2): fixation scales, defined in (480, 640)
         """
@@ -189,7 +189,10 @@ class DashCamEnv(core.Env):
         # ** Modified to encourage earlier detection: **
         # Instead of XNOR, just use the predicted probability
         # Reward larger if a higher probability was given before reaching ground-truth step 
-        tta_reward = (tta_weights * score_pred).unsqueeze(1) 
+        # ** Updated to reduce earliness: **
+        #  Use a penalty based on time:  Smaller reward earlier
+        # tta_reward = (tta_weights * score_pred).unsqueeze(1) 
+        tta_reward = (tta_weights * (score_pred * (1 - (self.cur_step / self.begin_accident)))) * mask_reward 
 
         # 2. Fixation Prediction Reward
         fix_gt = self.coord_data[:, (self.cur_step + 1)*self.step_size, :]  # (B, 2), [x, y]
