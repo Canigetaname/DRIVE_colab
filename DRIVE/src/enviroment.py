@@ -179,36 +179,33 @@ class DashCamEnv(core.Env):
         """ score_pred: (B,): accident score
             fix_pred: (B, 2): fixation scales, defined in (480, 640)
         """
+        # compute the time-to-accident reward
         batch_size = score_pred.size(0)
-
-        # 1.  Time-to-Accident Reward (TTA)
         exp_term = torch.clamp(self.begin_accident - self.cur_step*self.step_size / self.fps, min=0)  # max(0, ta-t)
-        tta_weights = (torch.exp(exp_term) - 1.0) / (torch.exp(self.begin_accident) - 1.0)  # Increasing weights toward accident
+        tta_weights = (torch.exp(exp_term) - 1.0) / (torch.exp(self.begin_accident) - 1.0)
         tta_weights = tta_weights.float()
 
-        # ** Modified to encourage earlier detection: **
-        # Instead of XNOR, just use the predicted probability
-        # Reward larger if a higher probability was given before reaching ground-truth step 
-        # ** Updated to reduce earliness: **
-        #  Use a penalty based on time:  Smaller reward earlier
-        # tta_reward = (tta_weights * score_pred).unsqueeze(1) 
-        tta_reward = (tta_weights * (score_pred * (1 - (self.cur_step / self.begin_accident)))) * mask_reward 
-
-        # 2. Fixation Prediction Reward
+        # ** Refined TTA Reward (penalizing false negatives)**
+        # This modification rewards both correctness and earliness, but also penalizes incorrect predictions based on XNOR comparison of label output.
+        # If the output is incorrectly predicted in the timestep at or after ground-truth time, it receives a large negative penalty:
+        false_negative_penalty = torch.where(
+            self.clsID == 1,   # Only when ground truth is an accident
+            torch.clamp((1 - score_pred), min=0),  # 0.0 if score is 1 (correct); increases as it's lower
+            torch.zeros_like(score_pred)
+        ).unsqueeze(1)
+        
+        # Combine both weights and negative penalty together, scaling as with previous TTA, so an early event detection with a large negative penalty on a true positive will likely give a less positive result.
+        r_tta = (tta_weights * xnor_dist).unsqueeze(1) - 0.5 * false_negative_penalty
+       
+        # compute fixation prediction award
         fix_gt = self.coord_data[:, (self.cur_step + 1)*self.step_size, :]  # (B, 2), [x, y]
-
-        # Compute distance using the `norm_fix` function to normalize
+        # compute distance
         dist_sq = torch.sum(torch.pow(norm_fix(fix_pred, self.input_size) - norm_fix(fix_gt, self.input_size), 2), dim=1, keepdim=True)  # [0, sqrt(2)]
-        mask_reward = fix_gt[:, 0].bool().float() * fix_gt[:, 1].bool().float()  # Mask if either fixation coordinate is 0
-        fixation_reward = mask_reward.unsqueeze(1) * torch.exp(-10.0 * dist_sq) 
+        mask_reward = fix_gt[:, 0].bool().float() * fix_gt[:, 1].bool().float()  # (B,)
+        r_atten = mask_reward.unsqueeze(1) * torch.exp(-10.0 * dist_sq)  # If fixation exists (r>0 & c>0), reward = exp(-mse)
 
-        # ** Add Sparsity Bonus:**
-        # Encourage attention to sparse regions (for potential early event detection)
-        fix_diff = (torch.abs(fix_pred[:, 0] - fix_gt[:, 0]) + torch.abs(fix_pred[:, 1] - fix_gt[:, 1])) / 2  # L1 Distance, scaled (between 0 and 1)
-        sparsity_reward = (1 - fix_diff).unsqueeze(1)  # Higher reward when looking at sparser regions 
-
-        # Total Reward
-        reward_batch = tta_reward + fixation_reward + sparsity_reward  # New combination, adjust weights based on exploration needs
+        # total reward
+        reward_batch = r_tta + r_atten
         return reward_batch
 
 
