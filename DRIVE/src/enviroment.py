@@ -200,7 +200,7 @@ class DashCamEnv(core.Env):
         xnor_dist = torch.logical_not(torch.logical_xor(cls_pred, self.clsID)).float()
         
         # Combine both weights and negative penalty together, scaling as with previous TTA, so an early event detection with a large negative penalty on a true positive will likely give a less positive result.
-        r_tta = (tta_weights * xnor_dist).unsqueeze(1) - 0.5 * false_negative_penalty
+        r_tta = (tta_weights * xnor_dist).unsqueeze(1) - 0.7 * false_negative_penalty
        
         # compute fixation prediction award
         fix_gt = self.coord_data[:, (self.cur_step + 1)*self.step_size, :]  # (B, 2), [x, y]
