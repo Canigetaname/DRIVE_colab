@@ -32,8 +32,6 @@ class SAC(object):
         self.input_size = cfg.input_shape
         self.pure_sl = cfg.pure_sl if hasattr(cfg, 'pure_sl') else False
 
-        self.num_epoch = cfg.num_epoch
-
         # state dims
         self.dim_state = cfg.dim_state
         self.dim_state_acc = int(0.5 * cfg.dim_state)
@@ -44,9 +42,9 @@ class SAC(object):
         self.dim_action = cfg.dim_action_acc + cfg.dim_action_fix
 
         # create actor and critics
-        self.policy_accident, self.policy_fixation, self.critic, self.critic_target, self.critic2, self.critic2_target = self.create_actor_critics(cfg)
+        self.policy_accident, self.policy_fixation, self.critic, self.critic_target, self.critic2, self.critic2_target = self.create_actor_critics(cfg) # Modified this line to include additional critics
         hard_update(self.critic_target, self.critic)
-        hard_update(self.critic2_target, self.critic2)
+        hard_update(self.critic2_target, self.critic2) # Added this line
 
         # optimizers
         self.critic_optim = Adam(self.critic.parameters(), lr=cfg.lr)
@@ -86,21 +84,19 @@ class SAC(object):
 
     def create_actor_critics(self, cfg):
         # create critic networks
-        critic = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(device=self.device) # changed here
-        critic_target = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(self.device) # changed here
+        critic = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(device=self.device)
+        critic_target = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(self.device)
         critic2 = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(device=self.device) #Added this line
         critic2_target = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(self.device) #Added this line
-
         # create accident anticipation policy
         dim_state = self.dim_state if cfg.arch_type == 'rae' else self.dim_state_acc
-        policy_accident = AccidentPolicy(dim_state, self.dim_action_acc, cfg.hidden_size,
-                                        dim_latent=cfg.dim_latent, arch_type=cfg.arch_type, policy_type=self.type_acc).to(self.device)
+        policy_accident = AccidentPolicy(dim_state, self.dim_action_acc, cfg.hidden_size, 
+            dim_latent=cfg.dim_latent, arch_type=cfg.arch_type, policy_type=self.type_acc).to(self.device)
         # create fixation prediction policy
         dim_state = self.dim_state if cfg.arch_type == 'rae' else self.dim_state_fix
-        policy_fixation = FixationPolicy(dim_state, self.dim_action_fix, cfg.hidden_size,
-                                        dim_latent=cfg.dim_latent, arch_type=cfg.arch_type, policy_type=self.type_fix).to(self.device)
-
-        return policy_accident, policy_fixation, critic, critic_target, critic2, critic2_target
+        policy_fixation = FixationPolicy(dim_state, self.dim_action_fix, cfg.hidden_size, 
+            dim_latent=cfg.dim_latent, arch_type=cfg.arch_type, policy_type=self.type_fix).to(self.device)
+        return policy_accident, policy_fixation, critic, critic_target
 
     
     def set_status(self, phase='train'):
@@ -113,23 +109,20 @@ class SAC(object):
             self.decoder.train(isTraining) 
 
 
-    def select_action(self, state, rnn_state=None, evaluate=False, previous_precision=0.5):
+    def select_action(self, state, rnn_state=None, evaluate=False):
         """state: (B, 64+64), [state_max, state_avg]
         """
         state_max = state[:, :self.dim_state_acc]
         state_avg = state[:, self.dim_state_acc:]
         acc_state = state.clone() if self.arch_type == 'rae' else state_max
         fix_state = state.clone() if self.arch_type == 'rae' else state_avg
-
-        noise_scale = max(0.0, 1.0 - previous_precision * 2)
-
         # execute actions
         if evaluate is False:
-            action_acc, rnn_state, _, _ = self.policy_accident.sample(acc_state, rnn_state, noise_scale=noise_scale)
-            action_fix, _, _ = self.policy_fixation.sample(fix_state, noise_scale=noise_scale)
+            action_acc, rnn_state, _, _ = self.policy_accident.sample(acc_state, rnn_state)
+            action_fix, _, _ = self.policy_fixation.sample(fix_state)
         else:
-            _, rnn_state, _, action_acc = self.policy_accident.sample(acc_state, rnn_state, detach=True, noise_scale=noise_scale)
-            _, _, action_fix = self.policy_fixation.sample(fix_state, detach=True, noise_scale=noise_scale)
+            _, rnn_state, _, action_acc = self.policy_accident.sample(acc_state, rnn_state)
+            _, _, action_fix = self.policy_fixation.sample(fix_state)
         # get actions
         actions = torch.cat([action_acc.detach(), action_fix.detach()], dim=1)  # (B, 3)
         if rnn_state is not None:
@@ -139,36 +132,27 @@ class SAC(object):
 
     def update_critic(self, state_batch, action_batch, reward_batch, next_state_batch, mask_batch, rnn_state_batch):
         with torch.no_grad():
-            # Split next states (if needed for your architecture)
-            #next_state_max = next_state_batch[:, :self.dim_state_acc]
-            #next_state_avg = next_state_batch[:, self.dim_state_acc:]
-            #next_acc_state = next_state_batch.clone() if self.arch_type == 'rae' else next_state_max
-            #next_fix_state = next_state_batch.clone() if self.arch_type == 'rae' else next_state_avg
-
-            # Sample actions for the next states (Using detach to avoid unnecessary gradient computations in this step)
-            next_state_action, _, next_state_log_pi, _ = self.policy_accident.sample(next_state_batch, rnn_state_batch, detach=True)  #Simplified sampling, only for the accident head
-
-            # Predict Q-values using target critics
+            # split the next_states
+            next_state_max = next_state_batch[:, :self.dim_state_acc]
+            next_state_avg = next_state_batch[:, self.dim_state_acc:]
+            next_acc_state = next_state_batch.clone() if self.arch_type == 'rae' else next_state_max
+            next_fix_state = next_state_batch.clone() if self.arch_type == 'rae' else next_state_avg
+            # inference two policies
+            next_acc_state_action, _, next_acc_state_log_pi, _ = self.policy_accident.sample(next_acc_state, rnn_state_batch)
+            next_fix_state_action, next_fix_state_log_pi, _ = self.policy_fixation.sample(next_fix_state)
+            next_state_action = torch.cat([next_acc_state_action, next_fix_state_action], dim=1)
+            # interence critics
             qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action)
-            qf1_next_target2, qf2_next_target2 = self.critic2_target(next_state_batch, next_state_action)  # Second target critic
-
-            min_qf_next_target = torch.min(qf1_next_target, qf2_next_target)
-            min_qf_next_target2 = torch.min(qf1_next_target2, qf2_next_target2)
-            next_q_value = torch.min(min_qf_next_target, min_qf_next_target2)  #Corrected this line, this is the actual min
-            next_q_value -= self.alpha * next_state_log_pi
-
-            next_q_value = reward_batch + (1 - mask_batch) * self.gamma * next_q_value
-
-        # Compute Q-values for the current state-action pair
-        qf1, qf2 = self.critic(state_batch, action_batch)
-        qf2_2, _ = self.critic2(state_batch, action_batch) # added this line
-
-        # Total critic loss (combine the two losses)
-        qf1_loss = F.mse_loss(qf1, next_q_value)
-        qf2_loss = F.mse_loss(qf2_2, next_q_value) # Modified this line
+            qf1_next_target2, qf2_next_target2 = self.critic2_target(next_state_batch, next_state_action) # Added this line
+            min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * (next_acc_state_log_pi + next_fix_state_log_pi)
+            next_q_value = reward_batch + (1 - mask_batch) * self.gamma * (min_qf_next_target)
+            next_q_value = torch.min(next_q_value, qf1_next_target2 - self.alpha * (next_acc_state_log_pi + next_fix_state_log_pi)) # Added this line
+        qf1, qf2 = self.critic(state_batch, action_batch)  # Two Q-functions to mitigate positive bias in the policy improvement step
+        qf1_loss = F.mse_loss(qf1, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+        qf2, _ = self.critic2(state_batch, action_batch) #Modified this line
+        qf2_loss = F.mse_loss(qf2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf_loss = qf1_loss + qf2_loss
 
-        # Backpropagation and optimization
         self.critic_optim.zero_grad()
         qf_loss.backward()
         self.critic_optim.step()
@@ -274,7 +258,7 @@ class SAC(object):
 
 
     def update_parameters(self, memory, updates):
-        self.max_updates = self.num_epoch*len(memory)
+        
         # sampling from replay buffer memory
         state_batch, action_batch, reward_batch, next_state_batch, rnn_state_batch, labels_batch, mask_batch = memory.sample(self.batch_size, self.device)
 
@@ -282,10 +266,6 @@ class SAC(object):
             # update critic networks
             self.update_critic(state_batch, action_batch, reward_batch, next_state_batch, mask_batch, rnn_state_batch)
         
-        # **Update critics frequently**
-        if updates % self.critic_update_interval == 0:
-            self.update_critic(state_batch, action_batch, reward_batch, next_state_batch, mask_batch, rnn_state_batch)
-
         # update actor and alpha
         alpha_values = self.alpha
         if updates % self.actor_update_interval == 0:
@@ -295,12 +275,9 @@ class SAC(object):
             alpha_tlogs = self.update_entropy(log_pi)
             alpha_values = alpha_tlogs.item()
 
-        # **Delayed critic target update**
-        if updates % (self.target_update_interval * 2) == 0:  # Delay by doubling the update interval
+        # update critic target
+        if updates % self.target_update_interval == 0:
             soft_update(self.critic_target, self.critic, self.tau)
-            # If you have multiple critics (e.g., in TD3):
-            if hasattr(self, 'critic2_target') and hasattr(self, 'critic2'):
-                soft_update(self.critic2_target, self.critic2, self.tau)
 
         # update decoder
         if self.arch_type == 'rae':

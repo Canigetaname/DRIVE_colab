@@ -105,17 +105,13 @@ class QNetwork(nn.Module):
         else:
             xu = torch.cat([state, action], 1)
 
-        print(xu.shape)
         x1 = F.relu(self.linear1(xu))
-        print(x1.shape)
         x1 = F.relu(self.linear2(x1))
-        print(x1.shape)
         x1 = self.linear3(x1)
-        print(x1.shape)
 
         x2 = F.relu(self.linear4(xu))
         x2 = F.relu(self.linear5(x2))
-        x2 = self.linear6(x2) # corrected this line
+        x2 = self.linear6(x1) # corrected this line
 
         return x1, x2
 
@@ -177,7 +173,8 @@ class AccidentPolicy(nn.Module):
             log_std = torch.tensor(0.0).to(mean.device)
         return mean, log_std, rnn_state_new
 
-    def sample(self, state, rnn_state=None, detach=False, noise_scale=1.0): # Added noise_scale
+
+    def sample(self, state, rnn_state=None, detach=False):
         mean, log_std, rnn_state = self.forward(state, rnn_state, detach=detach)
         if self.policy_type == 'Gaussian':
             std = log_std.exp()
@@ -185,8 +182,6 @@ class AccidentPolicy(nn.Module):
             x_t = normal.rsample()  # for reparameterization trick (mean + std * N(0,1))
             y_t = torch.tanh(x_t)
             action = y_t * self.action_scale + self.action_bias
-            # Add noise here!
-            action = action + noise_scale * torch.randn_like(action)  # Add Gaussian noise
             log_prob = normal.log_prob(x_t)
             # Enforcing Action Bound
             log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + epsilon)
@@ -247,7 +242,7 @@ class FixationPolicy(nn.Module):
             log_std = torch.tensor(0.0).to(mean.device)
         return mean, log_std
 
-    def sample(self, state, detach=False, noise_scale=1.0):
+    def sample(self, state, detach=False):
         mean, log_std = self.forward(state, detach=detach)
         if self.policy_type == 'Gaussian':
             std = log_std.exp()
@@ -255,8 +250,6 @@ class FixationPolicy(nn.Module):
             x_t = normal.rsample()  # for reparameterization trick (mean + std * N(0,1))
             y_t = torch.tanh(x_t)
             action = y_t.clone()
-            # Add noise here!
-            action = action + noise_scale * torch.randn_like(action)  # Add Gaussian noise
             log_prob = normal.log_prob(x_t)
             # Enforcing Action Bound
             log_prob -= torch.log(1 - y_t.pow(2) + epsilon)

@@ -41,8 +41,8 @@ def parse_configs():
                         help='setup baseline results for testing comparison')
     parser.add_argument('--seed', type=int, default=123, metavar='N',
                         help='random seed (default: 123)')
-    parser.add_argument('--num_epoch', type=int, default=1, metavar='N',
-                        help='number of epoches (default: 1)')
+    parser.add_argument('--num_epoch', type=int, default=7, metavar='N',
+                        help='number of epoches (default: 7)')
     parser.add_argument('--snapshot_interval', type=int, default=1, metavar='N',
                         help='The epoch interval of model snapshot (default: 1)')
     parser.add_argument('--test_epoch', type=int, default=-1, 
@@ -105,76 +105,53 @@ def write_logs(writer, outputs, updates):
     writer.add_scalar('temprature/alpha', alpha_values, updates)
 
 
-def train_per_epoch(traindata_loader, env, agent, cfg, writer, epoch, memory, updates, previous_precision=0.5):
+def train_per_epoch(traindata_loader, env, agent, cfg, writer, epoch, memory, updates):
     """ Training process for each epoch of dataset
     """
     reward_total = 0
-    all_pred_scores, all_gt_labels, all_toas = [], [], [] # Initialize lists to store prediction data for evaluation
-
-    FPS = 30 / cfg.ENV.frame_interval # Frames per second calculation based on configuration
-
-    for i, (video_data, _, coord_data, data_info) in tqdm(enumerate(traindata_loader), total=len(traindata_loader),
-                                                                                     desc='Epoch: %d / %d' % (epoch + 1, cfg.num_epoch)):  # (B, T, H, W, C)
-        # Set environment data
+    for i, (video_data, _, coord_data, data_info) in tqdm(enumerate(traindata_loader), total=len(traindata_loader), 
+                                                                                     desc='Epoch: %d / %d'%(epoch + 1, cfg.num_epoch)):  # (B, T, H, W, C)
+        # set environment data
         state = env.set_data(video_data, coord_data, data_info)
-        # Initialization
+        # initialization
         episode_reward = torch.tensor(0.0).to(cfg.device)
         done = torch.ones((cfg.ENV.batch_size, 1), dtype=torch.float32).to(cfg.device)
         rnn_state = (torch.zeros((cfg.ENV.batch_size, cfg.SAC.hidden_size), dtype=torch.float32).to(cfg.device),
                      torch.zeros((cfg.ENV.batch_size, cfg.SAC.hidden_size), dtype=torch.float32).to(cfg.device))
         episode_steps = 0
-        all_pred_scores_ep, all_gt_labels_ep, all_toas_ep = [], [], [] # Initialize lists for this epoch
-
         while episode_steps < env.max_steps:
-            # Select action, passing epoch number and previous precision to control noise
-            actions, rnn_state = agent.select_action(state, rnn_state, evaluate=False, previous_precision=previous_precision)
+            # select action
+            actions, rnn_state = agent.select_action(state, rnn_state)
 
             # Update parameters of all the networks
             if len(memory) > cfg.SAC.batch_size:
                 for _ in range(cfg.SAC.updates_per_step):
                     outputs = agent.update_parameters(memory, updates)
                     if updates % cfg.SAC.logging_interval == 0:
+                        # write log
                         write_logs(writer, outputs, updates)
                     updates += 1
 
-            # Step to next state
-            next_state, rewards, info = env.step(actions)  # Step
+            # step to next state
+            next_state, rewards, info = env.step(actions) # Step
             episode_steps += 1
             episode_reward += rewards.sum()
 
-            # Gather data for this episode (for precision calculation later)
-            all_pred_scores_ep.append(info['pred_score'].cpu().numpy()) #Append accident prediction score
-            all_gt_labels_ep.append(env.clsID.cpu().numpy()) #Append ground-truth label for accuracy checking
-            all_toas_ep.append(env.begin_accident.cpu().numpy()) #Append actual accident timing for measuring earliness
-
-
-            # Push the current step into memory
-            cur_time = torch.FloatTensor([(env.cur_step - 1) * env.step_size / env.fps] * cfg.ENV.batch_size).unsqueeze(1).to(cfg.device)  # (B, 1)
+            # push the current step into memory
+            cur_time = torch.FloatTensor([(env.cur_step-1) * env.step_size / env.fps] * cfg.ENV.batch_size).unsqueeze(1).to(cfg.device)  # (B, 1)
             next_step = env.cur_step if episode_steps != env.max_steps else env.cur_step - 1
             gt_fix_next = env.coord_data[:, next_step * env.step_size, :]  # (B, 2)
             labels = torch.cat((cur_time, env.clsID.float().unsqueeze(1), env.begin_accident.unsqueeze(1), gt_fix_next), dim=1)
 
             mask = done if episode_steps == env.max_steps else done - 1.0
-            memory.push(state, actions, rewards, next_state, rnn_state, labels, mask)  # Append transition to memory
-            # Shift to next state
+            memory.push(state, actions, rewards, next_state, rnn_state, labels, mask) # Append transition to memory
+            # shift to next state
             state = next_state.clone()
 
         reward_total += episode_reward.cpu().numpy()
-        #Store data for current epoch after episode completes
-        all_pred_scores.extend(all_pred_scores_ep)
-        all_gt_labels.extend(all_gt_labels_ep)
-        all_toas.extend(all_toas_ep)
-    
-    # Compute precision at the end of the epoch (this will be used for noise calculation in the next epoch)
-    all_pred_scores = np.concatenate(all_pred_scores)
-    all_gt_labels = np.concatenate(all_gt_labels)
-    all_toas = np.concatenate(all_toas)
-
-    _, precision, _ = evaluation_accident_new(all_pred_scores, all_gt_labels, all_toas, fps=FPS)
     writer.add_scalar('reward/train_per_epoch', reward_total, epoch)
-    writer.add_scalar('metrics/precision', precision, epoch)
-
-    return updates, precision # Return updates and precision
+    
+    return updates
 
 
 def eval_per_epoch(evaldata_loader, env, agent, cfg, writer, epoch):
@@ -227,11 +204,10 @@ def train():
     memory = ReplayMemory(cfg.SAC.replay_size) if not cfg.SAC.gpu_replay else ReplayMemoryGPU(cfg.SAC, cfg.ENV.batch_size, cfg.gpu_id, device=cfg.device)
 
     updates = 0
-    previous_precision = 0.5
     for e in range(cfg.num_epoch):
         # train each epoch
         agent.set_status('train')
-        updates, previous_precision = train_per_epoch(traindata_loader, env, agent, cfg, writer, e, memory, updates, previous_precision=previous_precision)
+        updates = train_per_epoch(traindata_loader, env, agent, cfg, writer, e, memory, updates)
 
         if (e+1) % cfg.snapshot_interval == 0:
             # save model file for each epoch (episode)

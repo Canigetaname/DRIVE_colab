@@ -195,7 +195,7 @@ class DashCamEnv(core.Env):
         ).unsqueeze(1)
         
         # ** Re-compute the XNOR component for their TTA Reward:**
-        # The predicted accident probability is converted to a binary class using their pre-defined score threshold, and their implementation assumes this is the XNOR calcu`lat`ion based on the accident time steps, i.e., a large negative penalty on false negatives.
+        # The predicted accident probability is converted to a binary class using their pre-defined score threshold, and their implementation assumes this is the XNOR calculation based on the accident time steps, i.e., a large negative penalty on false negatives.
         cls_pred = (score_pred > self.score_thresh).int()
         xnor_dist = torch.logical_not(torch.logical_xor(cls_pred, self.clsID)).float()
         
@@ -226,10 +226,9 @@ class DashCamEnv(core.Env):
         if self.fusion == 'dynamic':
             self.rho = torch.clamp_max(score_pred.clone(), self.fusion_margin)  # (B,)
 
-        #info = {}
-        info = {'pred_score': score_pred, 'pred_fixation': fix_pred}
-        #if not isTraining:
-        #    info.update({'pred_score': score_pred, 'pred_fixation': fix_pred})
+        info = {}
+        if not isTraining:
+            info.update({'pred_score': score_pred, 'pred_fixation': fix_pred})
 
         if self.cur_step < self.max_steps - 1:  # cur_step starts from 0
             # next state
@@ -245,4 +244,4 @@ class DashCamEnv(core.Env):
         self.cur_state = next_state.clone()
 
         return next_state, cur_rewards, info
-    
+
