@@ -42,9 +42,9 @@ class SAC(object):
         self.dim_action = cfg.dim_action_acc + cfg.dim_action_fix
 
         # create actor and critics
-        self.policy_accident, self.policy_fixation, self.critic, self.critic_target, self.critic2, self.critic2_target = self.create_actor_critics(cfg) # Modified this line to include additional critics
+        self.policy_accident, self.policy_fixation, self.critic, self.critic_target, self.critic2, self.critic2_target = self.create_actor_critics(cfg)
         hard_update(self.critic_target, self.critic)
-        hard_update(self.critic2_target, self.critic2) # Added this line
+        hard_update(self.critic2_target, self.critic2)
 
         # optimizers
         self.critic_optim = Adam(self.critic.parameters(), lr=cfg.lr)
@@ -84,10 +84,10 @@ class SAC(object):
 
     def create_actor_critics(self, cfg):
         # create critic networks
-        critic = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(device=self.device)
-        critic_target = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(self.device)
-        critic2 = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(device=self.device) #Added this line
-        critic2_target = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(self.device) #Added this line
+        critic = QNetwork(self.dim_state, self.dim_action, cfg.SAC.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(device=self.device) # changed here
+        critic_target = QNetwork(self.dim_state, self.dim_action, cfg.SAC.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(self.device) # changed here
+        critic2 = QNetwork(self.dim_state, self.dim_action, cfg.SAC.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(device=self.device) #Added this line
+        critic2_target = QNetwork(self.dim_state, self.dim_action, cfg.SAC.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(self.device) #Added this line
 
         # create accident anticipation policy
         dim_state = self.dim_state if cfg.arch_type == 'rae' else self.dim_state_acc
