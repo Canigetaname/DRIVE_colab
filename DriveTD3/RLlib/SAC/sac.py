@@ -88,15 +88,17 @@ class SAC(object):
         critic_target = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(self.device)
         critic2 = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(device=self.device) #Added this line
         critic2_target = QNetwork(self.dim_state, self.dim_action, cfg.hidden_size, dim_latent=cfg.dim_latent, arch_type=cfg.arch_type).to(self.device) #Added this line
+
         # create accident anticipation policy
         dim_state = self.dim_state if cfg.arch_type == 'rae' else self.dim_state_acc
-        policy_accident = AccidentPolicy(dim_state, self.dim_action_acc, cfg.hidden_size, 
-            dim_latent=cfg.dim_latent, arch_type=cfg.arch_type, policy_type=self.type_acc).to(self.device)
+        policy_accident = AccidentPolicy(dim_state, self.dim_action_acc, cfg.hidden_size,
+                                        dim_latent=cfg.dim_latent, arch_type=cfg.arch_type, policy_type=self.type_acc).to(self.device)
         # create fixation prediction policy
         dim_state = self.dim_state if cfg.arch_type == 'rae' else self.dim_state_fix
-        policy_fixation = FixationPolicy(dim_state, self.dim_action_fix, cfg.hidden_size, 
-            dim_latent=cfg.dim_latent, arch_type=cfg.arch_type, policy_type=self.type_fix).to(self.device)
-        return policy_accident, policy_fixation, critic, critic_target
+        policy_fixation = FixationPolicy(dim_state, self.dim_action_fix, cfg.hidden_size,
+                                        dim_latent=cfg.dim_latent, arch_type=cfg.arch_type, policy_type=self.type_fix).to(self.device)
+
+        return policy_accident, policy_fixation, critic, critic_target, critic2, critic2_target
 
     
     def set_status(self, phase='train'):
