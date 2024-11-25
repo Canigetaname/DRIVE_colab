@@ -21,7 +21,7 @@ SAC:
   lr: 0.000001
   lr_alpha: 0.00005
   num_classes: 2
-  hidden_size: 320
+  hidden_size: 64
   dim_state: 128
   dim_action_acc: 1
   dim_action_fix: 2

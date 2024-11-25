@@ -111,7 +111,7 @@ class QNetwork(nn.Module):
 
         x2 = F.relu(self.linear4(xu))
         x2 = F.relu(self.linear5(x2))
-        x2 = self.linear6(x1) # corrected this line
+        x2 = self.linear6(x2) # corrected this line
 
         return x1, x2
 
