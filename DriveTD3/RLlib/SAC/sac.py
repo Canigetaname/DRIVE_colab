@@ -96,7 +96,7 @@ class SAC(object):
         dim_state = self.dim_state if cfg.arch_type == 'rae' else self.dim_state_fix
         policy_fixation = FixationPolicy(dim_state, self.dim_action_fix, cfg.hidden_size, 
             dim_latent=cfg.dim_latent, arch_type=cfg.arch_type, policy_type=self.type_fix).to(self.device)
-        return policy_accident, policy_fixation, critic, critic_target
+        return policy_accident, policy_fixation, critic, critic_target, critic2, critic2_target
 
     
     def set_status(self, phase='train'):
