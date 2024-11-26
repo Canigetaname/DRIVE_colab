@@ -32,6 +32,8 @@ class SAC(object):
         self.input_size = cfg.input_shape
         self.pure_sl = cfg.pure_sl if hasattr(cfg, 'pure_sl') else False
 
+        self.num_epoch = cfg.num_epoch
+
         # state dims
         self.dim_state = cfg.dim_state
         self.dim_state_acc = int(0.5 * cfg.dim_state)

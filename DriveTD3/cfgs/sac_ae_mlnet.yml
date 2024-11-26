@@ -16,6 +16,7 @@ ENV:
   saliency: 'MLNet'
   env_model: ./models/saliency/mlnet_25.pth
 SAC:
+  num_epoch: 1
   gamma: 0.99
   tau: 0.005
   lr: 0.000001
