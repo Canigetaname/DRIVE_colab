@@ -113,7 +113,7 @@ class SAC(object):
             self.decoder.train(isTraining) 
 
 
-    def select_action(self, state, rnn_state=None, evaluate=False, epoch=0, previous_precision=0.5):
+    def select_action(self, state, rnn_state=None, evaluate=False, previous_precision=0.5):
         """state: (B, 64+64), [state_max, state_avg]
         """
         state_max = state[:, :self.dim_state_acc]

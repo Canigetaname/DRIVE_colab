@@ -127,7 +127,7 @@ def train_per_epoch(traindata_loader, env, agent, cfg, writer, epoch, memory, up
 
         while episode_steps < env.max_steps:
             # Select action, passing epoch number and previous precision to control noise
-            actions, rnn_state = agent.select_action(state, rnn_state, evaluate=False, epoch=epoch, previous_precision=previous_precision)
+            actions, rnn_state = agent.select_action(state, rnn_state, evaluate=False, previous_precision=previous_precision)
 
             # Update parameters of all the networks
             if len(memory) > cfg.SAC.batch_size:
