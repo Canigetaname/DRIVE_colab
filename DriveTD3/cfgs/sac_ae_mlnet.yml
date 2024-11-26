@@ -27,6 +27,8 @@ SAC:
   dim_action_fix: 2
   type_acc: "Gaussian"
   type_fix: "Gaussian"
+  critic_update_interval: 1  #change made
+  target_update_interval: 2  #change made
   actor_update_interval: 2
   target_update_interval: 1
   automatic_entropy_tuning: true

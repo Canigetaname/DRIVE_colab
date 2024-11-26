@@ -173,8 +173,7 @@ class AccidentPolicy(nn.Module):
             log_std = torch.tensor(0.0).to(mean.device)
         return mean, log_std, rnn_state_new
 
-
-    def sample(self, state, rnn_state=None, detach=False):
+    def sample(self, state, rnn_state=None, detach=False, noise_scale=1.0): # Added noise_scale
         mean, log_std, rnn_state = self.forward(state, rnn_state, detach=detach)
         if self.policy_type == 'Gaussian':
             std = log_std.exp()
@@ -182,6 +181,8 @@ class AccidentPolicy(nn.Module):
             x_t = normal.rsample()  # for reparameterization trick (mean + std * N(0,1))
             y_t = torch.tanh(x_t)
             action = y_t * self.action_scale + self.action_bias
+            # Add noise here!
+            action = action + noise_scale * torch.randn_like(action)  # Add Gaussian noise
             log_prob = normal.log_prob(x_t)
             # Enforcing Action Bound
             log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + epsilon)
@@ -242,7 +243,7 @@ class FixationPolicy(nn.Module):
             log_std = torch.tensor(0.0).to(mean.device)
         return mean, log_std
 
-    def sample(self, state, detach=False):
+    def sample(self, state, detach=False, noise_scale=1.0):
         mean, log_std = self.forward(state, detach=detach)
         if self.policy_type == 'Gaussian':
             std = log_std.exp()
@@ -250,6 +251,8 @@ class FixationPolicy(nn.Module):
             x_t = normal.rsample()  # for reparameterization trick (mean + std * N(0,1))
             y_t = torch.tanh(x_t)
             action = y_t.clone()
+            # Add noise here!
+            action = action + noise_scale * torch.randn_like(action)  # Add Gaussian noise
             log_prob = normal.log_prob(x_t)
             # Enforcing Action Bound
             log_prob -= torch.log(1 - y_t.pow(2) + epsilon)
