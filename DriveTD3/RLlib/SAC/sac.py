@@ -133,46 +133,34 @@ class SAC(object):
     def update_critic(self, state_batch, action_batch, reward_batch, next_state_batch, mask_batch, rnn_state_batch):
         with torch.no_grad():
             # split the next_states
-            '''
             next_state_max = next_state_batch[:, :self.dim_state_acc]
             next_state_avg = next_state_batch[:, self.dim_state_acc:]
             next_acc_state = next_state_batch.clone() if self.arch_type == 'rae' else next_state_max
             next_fix_state = next_state_batch.clone() if self.arch_type == 'rae' else next_state_avg
-            
             # inference two policies
             next_acc_state_action, _, next_acc_state_log_pi, _ = self.policy_accident.sample(next_acc_state, rnn_state_batch)
             next_fix_state_action, next_fix_state_log_pi, _ = self.policy_fixation.sample(next_fix_state)
             next_state_action = torch.cat([next_acc_state_action, next_fix_state_action], dim=1)
-'''
-            next_state_action, _, next_state_log_pi, _ = self.policy_accident.sample(next_state_batch, rnn_state_batch, detach=True)
-
             # interence critics
             qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action)
             qf1_next_target2, qf2_next_target2 = self.critic2_target(next_state_batch, next_state_action) # Added this line
-            
-             # Clipped Double Q-learning
+
+            # Clipped Double Q-learning
             min_qf_next_target = torch.min(qf1_next_target, qf2_next_target)
             min_qf_next_target2 = torch.min(qf1_next_target2, qf2_next_target2)
-            next_q_value = torch.min(min_qf_next_target, min_qf_next_target2)
-            next_q_value -= self.alpha * next_state_log_pi
-
-            # Calculate the target Q-value for TD3 update (using reward and mask)
-            next_q_value = reward_batch + (1 - mask_batch) * self.gamma * next_q_value
-
-        # Compute Q-values for current state-action pair
-        qf1, qf2 = self.critic(state_batch, action_batch)
-        qf2_2, _ = self.critic2(state_batch, action_batch)
-
-        # MSE loss for both critics
-        qf1_loss = F.mse_loss(qf1, next_q_value)
-        qf2_loss = F.mse_loss(qf2_2, next_q_value)
+            min_qf_both_target = torch.min(min_qf_next_target, min_qf_next_target2) - self.alpha * (next_acc_state_log_pi + next_fix_state_log_pi)
+            next_q_value = reward_batch + (1 - mask_batch) * self.gamma * (min_qf_both_target)
+            
+            
+        qf1, qf2 = self.critic(state_batch, action_batch)  # Two Q-functions to mitigate positive bias in the policy improvement step
+        qf1_loss = F.mse_loss(qf1, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
+        qf2_2, _ = self.critic2(state_batch, action_batch) #Modified this line
+        qf2_loss = F.mse_loss(qf2_2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf_loss = qf1_loss + qf2_loss
 
-        # Optimization step
         self.critic_optim.zero_grad()
         qf_loss.backward()
         self.critic_optim.step()
-
         self.losses.update({'critic': qf_loss.item()})
 
 
