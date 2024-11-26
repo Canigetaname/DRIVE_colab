@@ -275,9 +275,10 @@ class SAC(object):
             alpha_tlogs = self.update_entropy(log_pi)
             alpha_values = alpha_tlogs.item()
 
-        # update critic target
-        if updates % self.target_update_interval == 0:
+        # Update targets less frequently than critics (using a fixed ratio)
+        if updates % 2 == 0:  # Update targets every 2 critic updates.  Change this value if necessary. 
             soft_update(self.critic_target, self.critic, self.tau)
+            soft_update(self.critic2_target, self.critic2, self.tau)
 
         # update decoder
         if self.arch_type == 'rae':
