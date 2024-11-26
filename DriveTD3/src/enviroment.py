@@ -195,7 +195,7 @@ class DashCamEnv(core.Env):
         ).unsqueeze(1)
         
         # ** Re-compute the XNOR component for their TTA Reward:**
-        # The predicted accident probability is converted to a binary class using their pre-defined score threshold, and their implementation assumes this is the XNOR calculation based on the accident time steps, i.e., a large negative penalty on false negatives.
+        # The predicted accident probability is converted to a binary class using their pre-defined score threshold, and their implementation assumes this is the XNOR calcu`lat`ion based on the accident time steps, i.e., a large negative penalty on false negatives.
         cls_pred = (score_pred > self.score_thresh).int()
         xnor_dist = torch.logical_not(torch.logical_xor(cls_pred, self.clsID)).float()
         

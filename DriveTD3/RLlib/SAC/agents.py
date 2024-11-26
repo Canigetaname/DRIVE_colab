@@ -105,17 +105,17 @@ class QNetwork(nn.Module):
         else:
             xu = torch.cat([state, action], 1)
 
+        print(xu.shape)
         x1 = F.relu(self.linear1(xu))
+        print(x1.shape)
         x1 = F.relu(self.linear2(x1))
+        print(x1.shape)
         x1 = self.linear3(x1)
-
-        print("hELLO")
+        print(x1.shape)
 
         x2 = F.relu(self.linear4(xu))
         x2 = F.relu(self.linear5(x2))
         x2 = self.linear6(x2) # corrected this line
-
-        print("hELLO2")
 
         return x1, x2
 
