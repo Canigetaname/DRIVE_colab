@@ -226,9 +226,10 @@ class DashCamEnv(core.Env):
         if self.fusion == 'dynamic':
             self.rho = torch.clamp_max(score_pred.clone(), self.fusion_margin)  # (B,)
 
-        info = {}
-        if not isTraining:
-            info.update({'pred_score': score_pred, 'pred_fixation': fix_pred})
+        #info = {}
+        info = {'pred_score': score_pred, 'pred_fixation': fix_pred}
+        #if not isTraining:
+        #    info.update({'pred_score': score_pred, 'pred_fixation': fix_pred})
 
         if self.cur_step < self.max_steps - 1:  # cur_step starts from 0
             # next state
@@ -244,4 +245,4 @@ class DashCamEnv(core.Env):
         self.cur_state = next_state.clone()
 
         return next_state, cur_rewards, info
-
+    
