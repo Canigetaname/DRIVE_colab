@@ -109,6 +109,7 @@ def train_per_epoch(traindata_loader, env, agent, cfg, writer, epoch, memory, up
     """ Training process for each epoch of dataset
     """
     reward_total = 0
+    agent.current_epoch = epoch+1
     for i, (video_data, _, coord_data, data_info) in tqdm(enumerate(traindata_loader), total=len(traindata_loader), 
                                                                                      desc='Epoch: %d / %d'%(epoch + 1, cfg.num_epoch)):  # (B, T, H, W, C)
         # set environment data
@@ -175,7 +176,6 @@ def eval_per_epoch(evaldata_loader, env, agent, cfg, writer, epoch):
 
         total_reward += episode_reward.cpu().numpy()
     writer.add_scalar('reward/test_per_epoch', total_reward, epoch)
-
 
 def train():
 

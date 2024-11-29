@@ -31,6 +31,7 @@ class SAC(object):
         self.image_size = cfg.image_shape
         self.input_size = cfg.input_shape
         self.pure_sl = cfg.pure_sl if hasattr(cfg, 'pure_sl') else False
+        self.num_epoch = cfg.num_epoch
 
         # state dims
         self.dim_state = cfg.dim_state
@@ -108,6 +109,9 @@ class SAC(object):
         if self.arch_type == 'rae':
             self.decoder.train(isTraining) 
 
+    def get_noise_scale(self, epoch, total_epoch): # Added this method
+        return max(0, 1.0 - epoch / total_epoch)
+
 
     def select_action(self, state, rnn_state=None, evaluate=False):
         """state: (B, 64+64), [state_max, state_avg]
@@ -116,13 +120,15 @@ class SAC(object):
         state_avg = state[:, self.dim_state_acc:]
         acc_state = state.clone() if self.arch_type == 'rae' else state_max
         fix_state = state.clone() if self.arch_type == 'rae' else state_avg
+
+        noise_scale = self.get_noise_scale(self.current_epoch,self.num_epoch)
         # execute actions
         if evaluate is False:
-            action_acc, rnn_state, _, _ = self.policy_accident.sample(acc_state, rnn_state)
-            action_fix, _, _ = self.policy_fixation.sample(fix_state)
+            action_acc, rnn_state, _, _ = self.policy_accident.sample(acc_state, rnn_state, noise_scale=noise_scale)
+            action_fix, _, _ = self.policy_fixation.sample(fix_state, noise_scale=noise_scale)
         else:
-            _, rnn_state, _, action_acc = self.policy_accident.sample(acc_state, rnn_state)
-            _, _, action_fix = self.policy_fixation.sample(fix_state)
+            _, rnn_state, _, action_acc = self.policy_accident.sample(acc_state, rnn_state, detach=True, noise_scale=noise_scale)
+            _, _, action_fix = self.policy_fixation.sample(fix_state, detach=True, noise_scale=noise_scale)
         # get actions
         actions = torch.cat([action_acc.detach(), action_fix.detach()], dim=1)  # (B, 3)
         if rnn_state is not None:
