@@ -272,6 +272,7 @@ class SAC(object):
         state_batch, action_batch, reward_batch, next_state_batch, rnn_state_batch, labels_batch, mask_batch = memory.sample(self.batch_size, self.device)
 
         if not self.pure_sl:
+            alpha_values=None
             # Update critics more frequently
             self.update_critic(state_batch, action_batch, reward_batch, next_state_batch, mask_batch, rnn_state_batch)
 
