@@ -124,8 +124,10 @@ class SAC(object):
         acc_state = state.clone() if self.arch_type == 'rae' else state_max
         fix_state = state.clone() if self.arch_type == 'rae' else state_avg
         
-        print(self.status)
-        noise_scale = self.get_noise_scale(self.current_epoch,self.total_epochs)
+        if self.status:
+            noise_scale = self.get_noise_scale(self.current_epoch,self.total_epochs)
+        else:
+            noise_scale=0
         # execute actions
         if evaluate is False:
             action_acc, rnn_state, _, _ = self.policy_accident.sample(acc_state, rnn_state, noise_scale=noise_scale)
