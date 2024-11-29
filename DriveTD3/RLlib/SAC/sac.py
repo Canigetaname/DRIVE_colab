@@ -268,31 +268,27 @@ class SAC(object):
 
 
     def update_parameters(self, memory, updates):
-        
-        # sampling from replay buffer memory
+        # Sample from replay buffer
         state_batch, action_batch, reward_batch, next_state_batch, rnn_state_batch, labels_batch, mask_batch = memory.sample(self.batch_size, self.device)
 
         if not self.pure_sl:
-            # update critic networks
+            # Update critics more frequently
             self.update_critic(state_batch, action_batch, reward_batch, next_state_batch, mask_batch, rnn_state_batch)
-        
-        # update actor and alpha
-        alpha_values = self.alpha
-        if updates % self.actor_update_interval == 0:
-            log_pi = self.update_actor(state_batch, rnn_state_batch, labels_batch)
 
-            # update entropy term
-            alpha_tlogs = self.update_entropy(log_pi)
-            alpha_values = alpha_tlogs.item()
+            # Update actor and alpha less frequently (delayed updates)
+            if updates % 2 == 0: #Update actor every 2 critic updates. Adjust as needed
+                log_pi = self.update_actor(state_batch, rnn_state_batch, labels_batch)
+                alpha_tlogs = self.update_entropy(log_pi)
+                alpha_values = alpha_tlogs.item()
 
-        # Update targets less frequently than critics (using a fixed ratio)
-        if updates % 2 == 0:  # Update targets every 2 critic updates.  Change this value if necessary. 
-            soft_update(self.critic_target, self.critic, self.tau)
-            soft_update(self.critic2_target, self.critic2, self.tau)
+            # Update target networks (less frequently than critics)
+            if updates % 5 == 0:  #Update targets every 5 critic updates. Adjust as needed.
+                soft_update(self.critic_target, self.critic, self.tau)
+                soft_update(self.critic2_target, self.critic2, self.tau)
 
-        # update decoder
-        if self.arch_type == 'rae':
-            self.update_decoder(state_batch, latent_lambda=self.latent_lambda)
+            # Update decoder (only for rae)
+            if self.arch_type == 'rae':
+                self.update_decoder(state_batch, latent_lambda=self.latent_lambda)
 
         return self.losses, alpha_values
 
