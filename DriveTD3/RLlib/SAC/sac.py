@@ -281,8 +281,8 @@ class SAC(object):
                 alpha_tlogs = self.update_entropy(log_pi)
                 alpha_values = alpha_tlogs.item()
 
-            print(alpha_values)
-            alpha_values = self.alpha
+            if alpha_values==None:
+                alpha_values = self.alpha
 
             # Update target networks (less frequently than critics)
             if updates % 5 == 0:  #Update targets every 5 critic updates. Adjust as needed.
