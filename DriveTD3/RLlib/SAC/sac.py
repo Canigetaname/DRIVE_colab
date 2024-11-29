@@ -277,12 +277,12 @@ class SAC(object):
             self.update_critic(state_batch, action_batch, reward_batch, next_state_batch, mask_batch, rnn_state_batch)
 
             # Update actor and alpha less frequently (delayed updates)
-            if updates % 2 == 0: #Update actor every 2 critic updates. Adjust as needed
+            if updates % self.actor_update_interval == 0: #Update actor every 2 critic updates. Adjust as needed
                 log_pi = self.update_actor(state_batch, rnn_state_batch, labels_batch)
                 alpha_tlogs = self.update_entropy(log_pi)
                 alpha_values = alpha_tlogs.item()
 
-            alpha_values = alpha_tlogs.item()
+            alpha_values = self.alpha
 
             # Update target networks (less frequently than critics)
             if updates % 5 == 0:  #Update targets every 5 critic updates. Adjust as needed.
