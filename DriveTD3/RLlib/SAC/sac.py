@@ -109,6 +109,8 @@ class SAC(object):
             self.decoder.train(isTraining) 
         if phase=='train':
             self.status=True #true means it is training currently
+        else:
+            self.status=False
 
     def get_noise_scale(self, epoch, total_epochs): # Added this method
         return max(0, 1.0 - epoch / total_epochs)
