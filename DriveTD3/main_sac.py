@@ -109,8 +109,6 @@ def train_per_epoch(traindata_loader, env, agent, cfg, writer, epoch, memory, up
     """ Training process for each epoch of dataset
     """
     reward_total = 0
-    agent.current_epoch = epoch+1
-    agent.total_epochs = cfg.num_epoch
     for i, (video_data, _, coord_data, data_info) in tqdm(enumerate(traindata_loader), total=len(traindata_loader), 
                                                                                      desc='Epoch: %d / %d'%(epoch + 1, cfg.num_epoch)):  # (B, T, H, W, C)
         # set environment data
@@ -201,11 +199,14 @@ def train():
     # AgentENV
     agent = SAC(cfg.SAC, device=cfg.device)
 
+    agent.total_epochs = cfg.num_epoch
+
     # Memory
     memory = ReplayMemory(cfg.SAC.replay_size) if not cfg.SAC.gpu_replay else ReplayMemoryGPU(cfg.SAC, cfg.ENV.batch_size, cfg.gpu_id, device=cfg.device)
 
     updates = 0
     for e in range(cfg.num_epoch):
+        agent.current_epoch = e+1
         # train each epoch
         agent.set_status('train')
         updates = train_per_epoch(traindata_loader, env, agent, cfg, writer, e, memory, updates)
