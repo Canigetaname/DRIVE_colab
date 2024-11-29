@@ -272,7 +272,6 @@ class SAC(object):
         state_batch, action_batch, reward_batch, next_state_batch, rnn_state_batch, labels_batch, mask_batch = memory.sample(self.batch_size, self.device)
 
         if not self.pure_sl:
-            print("in method")
             # Update critics more frequently
             self.update_critic(state_batch, action_batch, reward_batch, next_state_batch, mask_batch, rnn_state_batch)
 
@@ -282,6 +281,7 @@ class SAC(object):
                 alpha_tlogs = self.update_entropy(log_pi)
                 alpha_values = alpha_tlogs.item()
 
+            print(alpha_values)
             alpha_values = self.alpha
 
             # Update target networks (less frequently than critics)
@@ -293,7 +293,6 @@ class SAC(object):
             if self.arch_type == 'rae':
                 self.update_decoder(state_batch, latent_lambda=self.latent_lambda)
 
-        print("not in method")
         return self.losses, alpha_values
 
 
