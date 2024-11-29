@@ -41,8 +41,8 @@ def parse_configs():
                         help='setup baseline results for testing comparison')
     parser.add_argument('--seed', type=int, default=123, metavar='N',
                         help='random seed (default: 123)')
-    parser.add_argument('--num_epoch', type=int, default=7, metavar='N',
-                        help='number of epoches (default: 7)')
+    parser.add_argument('--num_epoch', type=int, default=1, metavar='N',
+                        help='number of epoches (default: 1)')
     parser.add_argument('--snapshot_interval', type=int, default=1, metavar='N',
                         help='The epoch interval of model snapshot (default: 1)')
     parser.add_argument('--test_epoch', type=int, default=-1, 
@@ -110,6 +110,7 @@ def train_per_epoch(traindata_loader, env, agent, cfg, writer, epoch, memory, up
     """
     reward_total = 0
     agent.current_epoch = epoch+1
+    agent.total_epochs = cfg.num_epoch
     for i, (video_data, _, coord_data, data_info) in tqdm(enumerate(traindata_loader), total=len(traindata_loader), 
                                                                                      desc='Epoch: %d / %d'%(epoch + 1, cfg.num_epoch)):  # (B, T, H, W, C)
         # set environment data

@@ -31,7 +31,6 @@ class SAC(object):
         self.image_size = cfg.image_shape
         self.input_size = cfg.input_shape
         self.pure_sl = cfg.pure_sl if hasattr(cfg, 'pure_sl') else False
-        self.num_epoch = cfg.num_epoch
 
         # state dims
         self.dim_state = cfg.dim_state
@@ -109,8 +108,8 @@ class SAC(object):
         if self.arch_type == 'rae':
             self.decoder.train(isTraining) 
 
-    def get_noise_scale(self, epoch, total_epoch): # Added this method
-        return max(0, 1.0 - epoch / total_epoch)
+    def get_noise_scale(self, epoch, total_epochs): # Added this method
+        return max(0, 1.0 - epoch / total_epochs)
 
 
     def select_action(self, state, rnn_state=None, evaluate=False):
@@ -121,7 +120,7 @@ class SAC(object):
         acc_state = state.clone() if self.arch_type == 'rae' else state_max
         fix_state = state.clone() if self.arch_type == 'rae' else state_avg
 
-        noise_scale = self.get_noise_scale(self.current_epoch,self.num_epoch)
+        noise_scale = self.get_noise_scale(self.current_epoch,self.total_epochs)
         # execute actions
         if evaluate is False:
             action_acc, rnn_state, _, _ = self.policy_accident.sample(acc_state, rnn_state, noise_scale=noise_scale)
