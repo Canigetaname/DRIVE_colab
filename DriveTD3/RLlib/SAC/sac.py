@@ -133,8 +133,8 @@ class SAC(object):
             action_acc, rnn_state, _, _ = self.policy_accident.sample(acc_state, rnn_state, noise_scale=noise_scale)
             action_fix, _, _ = self.policy_fixation.sample(fix_state, noise_scale=noise_scale)
         else:
-            _, rnn_state, _, action_acc = self.policy_accident.sample(acc_state, rnn_state, detach=True, noise_scale=noise_scale)
-            _, _, action_fix = self.policy_fixation.sample(fix_state, detach=True, noise_scale=noise_scale)
+            _, rnn_state, _, action_acc = self.policy_accident.sample(acc_state, rnn_state, noise_scale=noise_scale)
+            _, _, action_fix = self.policy_fixation.sample(fix_state, noise_scale=noise_scale)
         # get actions
         actions = torch.cat([action_acc.detach(), action_fix.detach()], dim=1)  # (B, 3)
         if rnn_state is not None:
