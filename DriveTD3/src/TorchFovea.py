@@ -78,6 +78,8 @@ class TorchFovea(torch.nn.Module):
             y1 = rect[:, 1]
             y2 = rect[:, 1] + image_sizes[i][1]
             kernel_rect = [self.filters[i][y1[j]:y2[j], x1[j]:x2[j]] for j in range(batchsize)]
+            for j in range(batchsize):
+                print(f"Shape of tensor {j}: {self.filters[i][y1[j]:y2[j], x1[j]:x2[j]].shape}")
             kernel_rect = torch.stack(kernel_rect).unsqueeze(1)  # expand channel dimension  # (B, 1, 480, 639)
             # filtering
             kernel_rect = F.interpolate(kernel_rect, [image_sizes[i][1], image_sizes[i][0]])
